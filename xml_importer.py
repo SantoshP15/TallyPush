@@ -442,7 +442,7 @@ def import_xml(
     for obj in objects:
 
         record = object_to_dict(obj)
-        print(record)
+        # print(record)
         # break   
         columns, values = prepare_record(
 
