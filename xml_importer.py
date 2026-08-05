@@ -192,16 +192,23 @@ def prepare_record(record, table_name, sql_columns):
 # Check Existing Record
 # ==========================================
 
-def record_exists(cursor, table_name, master_id):
+def record_exists(cursor, table_name, columns, values, key_columns):
 
-    cursor.execute(
-        f"""
-        SELECT AlterID
-        FROM {table_name}
-        WHERE MasterID = ?
-        """,
-        master_id
-    )
+    where_clause = " AND ".join([f"{col}=?" for col in key_columns])
+
+    key_values = []
+
+    for key in key_columns:
+        idx = [c.upper() for c in columns].index(key.upper())
+        key_values.append(values[idx])
+
+    sql = f"""
+    SELECT AlterID
+    FROM {table_name}
+    WHERE {where_clause}
+    """
+
+    cursor.execute(sql, key_values)
 
     return cursor.fetchone()
 
@@ -265,8 +272,9 @@ def sync_record(
         cursor,
         table_name,
         columns,
-        values,
-        mode="UPSERT"
+        values, 
+        mode="UPSERT",
+        key_columns=None
 ):
 
     # ----------------------------------
@@ -314,17 +322,12 @@ def sync_record(
 
         return "INSERT"
 
-    master_index = [
-        c.upper()
-        for c in columns
-    ].index("MASTERID")
-
-    master_id = values[master_index]
-
     row = record_exists(
         cursor,
         table_name,
-        master_id
+        columns,
+        values,
+        key_columns
     )
 
     # New Record
@@ -373,7 +376,8 @@ def sync_record(
 def import_xml(
         xml,
         table_name,
-        mode="UPSERT"
+        mode="UPSERT",
+        key_columns=None
 ):
 
     # ----------------------------
@@ -462,7 +466,8 @@ def import_xml(
             table_name,
             columns,
             values,
-            mode
+            mode,
+            key_columns
 
         )
 

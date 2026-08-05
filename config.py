@@ -52,13 +52,16 @@ COLLECTIONS = [
     {
         "collection": "SalesInventoryDetails_coll",
         "table": "SalesInventory",
-        "mode": "UPSERT"
+        "mode": "UPSERT",
+        "key_columns": ["MasterID", "StockItemName"]
+        
     },
 
     {
         "collection": "SalesLedgerDetails_collSrc",
         "table": "SalesLedger",
-        "mode": "UPSERT"
+        "mode": "UPSERT",
+        "key_columns": ["MasterID"]
     },
 
     # {

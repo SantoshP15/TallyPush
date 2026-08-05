@@ -15,7 +15,7 @@ for item in COLLECTIONS:
     collection_name = item["collection"]
     table_name = item["table"]
     mode = item["mode"]
-    
+    key_columns = item["key_columns"]
     last_alterid = get_last_alterid(table_name)
     print(f"\nProcessing : {collection_name}")
 
@@ -57,19 +57,23 @@ for item in COLLECTIONS:
         import_xml(
             response_xml,
             table_name,
-            mode
+            mode,
+            key_columns
         )
 
         log_info(f"{table_name} Imported Successfully")
 
         print(f"✓ {table_name} Imported Successfully")
 
+        import traceback
+
     except Exception as e:
 
         log_error(f"{table_name} : {str(e)}")
 
         print(f"✗ Error importing {table_name}")
-        print(e)
+
+        traceback.print_exc()
 
 print("\n" + "=" * 70)
 print("ALL COLLECTIONS COMPLETED")
