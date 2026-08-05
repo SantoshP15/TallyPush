@@ -20,10 +20,15 @@ def sync():
 
         for item in COLLECTIONS:
 
+            collection_name = item["collection"]
+            table_name = item["table"]
+            mode = item["mode"]
+            key_columns = item["key_columns"]
+
             request_xml = get_collection_xml(
-                item["collection"]
+                collection_name
             )
-            print(request_xml)
+
             response_xml = send_request(
                 request_xml
             )
@@ -32,15 +37,17 @@ def sync():
 
                 response_xml,
 
-                item["table"],
+                table_name,
 
-                item["mode"]
+                mode,
+
+                key_columns
 
             )
 
         return jsonify({
 
-            "message":"Synchronization Completed Successfully"
+            "message": "Synchronization Completed Successfully"
 
         })
 
@@ -48,7 +55,7 @@ def sync():
 
         return jsonify({
 
-            "message":str(e)
+            "message": str(e)
 
         })
 

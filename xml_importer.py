@@ -194,6 +194,8 @@ def prepare_record(record, table_name, sql_columns):
 
 def record_exists(cursor, table_name, columns, values, key_columns):
 
+    print("RECORD key_columns:", key_columns)
+
     where_clause = " AND ".join([f"{col}=?" for col in key_columns])
 
     key_values = []
@@ -280,7 +282,7 @@ def sync_record(
     # ----------------------------------
     # INSERT ONLY
     # ----------------------------------
-
+    print("SYNC key_columns:", key_columns)
     if mode.upper() == "INSERT":
 
         insert_record(
@@ -383,7 +385,7 @@ def import_xml(
     # ----------------------------
     # Clean XML
     # ----------------------------
-
+    print("IMPORT key_columns:", key_columns)
     xml = clean_xml(xml)
 
     # ----------------------------
