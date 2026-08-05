@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+    <div class="card shadow-lg">
+
+        <div class="card-header bg-primary text-white">
+
+            <h3>Tally Data Synchronizer</h3>
+
+        </div>
+
+        <div class="card-body">
+
+            <h5>Collections</h5>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label">
+                    Sales Ledger
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label">
+                    Sales Inventory
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label">
+                    Purchase Ledger
+                </label>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" checked>
+                <label class="form-check-label">
+                    Purchase Inventory
+                </label>
+            </div>
+
+            <br>
+
+            <button class="btn btn-success" onclick="startSync()">
+                Start Synchronization
+            </button>
+
+            <hr>
+
+            <h5>Status</h5>
+
+            <div id="status">
+
+                Waiting...
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<script>
+
+async function startSync() {
+
+    document.getElementById("status").innerHTML =
+        "Synchronizing...";
+
+    try {
+
+        const response = await fetch("/sync", {
+
+            method: "POST"
+
+        });
+
+        const result = await response.json();
+
+        document.getElementById("status").innerHTML =
+            result.message;
+
+    }
+
+    catch(err){
+
+        document.getElementById("status").innerHTML =
+            err;
+
+    }
+
+}
+
+</script>
+
+{% endblock %}
