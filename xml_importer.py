@@ -1,16 +1,20 @@
 from lxml import etree
 import re
 
+from datetime import datetime
+
+from database import get_connection
+from column_mapping import COLUMN_MAPPINGS
+
+
 # ==========================================
-# Clean Tally XML
+# Clean XML
 # ==========================================
 
 def clean_xml(xml):
 
-    # Remove invalid XML entities like &#4;
     xml = re.sub(r'&#\d+;', '', xml)
 
-    # Remove illegal control characters
     xml = ''.join(
 
         ch for ch in xml
@@ -46,7 +50,7 @@ def parse_xml(xml):
 
 
 # ==========================================
-# Convert XML Object to Dictionary
+# XML OBJECT -> Dictionary
 # ==========================================
 
 def object_to_dict(obj):
@@ -55,7 +59,7 @@ def object_to_dict(obj):
 
     for child in obj:
 
-        # Ignore nested collections for now
+        # Ignore Nested Collections
         if len(child):
 
             continue
@@ -75,74 +79,98 @@ def object_to_dict(obj):
         record[tag] = value
 
     return record
-from database import get_connection
-from column_mapping import COLUMN_MAPPINGS
-from datetime import datetime
 
 
 # ==========================================
-# Get SQL Table Columns
+# SQL Columns
 # ==========================================
 
 def get_table_columns(cursor, table_name):
 
     cursor.execute("""
+
         SELECT COLUMN_NAME
+
         FROM INFORMATION_SCHEMA.COLUMNS
+
         WHERE TABLE_NAME = ?
+
     """, table_name)
 
-    return [row[0].upper() for row in cursor.fetchall()]
+    return [
+
+        row[0].upper()
+
+        for row in cursor.fetchall()
+
+    ]
 
 
 # ==========================================
-# Convert XML Value
+# Convert Values
 # ==========================================
 
 def convert_value(db_column, value):
 
     if value is None or value == "":
+
         return None
 
     db_column = db_column.upper()
 
-    # -------------------------
-    # Date Columns
-    # -------------------------
+    # ------------------------
+    # Dates
+    # ------------------------
 
     if "DATE" in db_column:
 
         try:
+
             return datetime.strptime(
+
                 value,
                 "%Y%m%d"
+
             ).date()
 
         except:
+
             return value
 
-    # -------------------------
-    # Numeric Columns
-    # -------------------------
+    # ------------------------
+    # Numbers
+    # ------------------------
 
     if db_column in (
+
         "AMOUNT",
         "RATE",
         "STOCKQTY",
         "ALTQTY",
-        "GSTRATE"
+        "GSTRATE",
+        "ALTERID"
+
     ):
 
-        numbers = re.findall(
+        number = re.findall(
+
             r"-?\d+\.?\d*",
-            value
+            str(value)
+
         )
 
-        if numbers:
+        if number:
 
             try:
-                return float(numbers[0])
+
+                if db_column == "ALTERID":
+
+                    return int(number[0])
+
+                return float(number[0])
+
             except:
+
                 pass
 
     return value
@@ -151,75 +179,77 @@ def convert_value(db_column, value):
 # ==========================================
 # Prepare Record
 # ==========================================
-def prepare_record(record, table_name, sql_columns):
+
+def prepare_record(
+
+        record,
+        table_name,
+        sql_columns
+
+):
 
     mapping = COLUMN_MAPPINGS.get(
+
         table_name,
+
         {}
+
     )
 
     columns = []
+
     values = []
 
     for key, value in record.items():
 
-        # XML Tag -> SQL Column
         db_column = mapping.get(
+
             key,
+
             key
+
         )
 
         if db_column.upper() not in sql_columns:
+
             continue
 
         value = convert_value(
+
             db_column,
+
             value
+
         )
 
-        # Avoid duplicate SQL columns
+        # Avoid duplicate columns
+
         if db_column.upper() in [
+
             c.upper()
+
             for c in columns
+
         ]:
+
             continue
 
         columns.append(db_column)
+
         values.append(value)
 
     return columns, values
-# ==========================================
-# Check Existing Record
-# ==========================================
-
-def record_exists(cursor, table_name, columns, values, key_columns):
-
-    print("RECORD key_columns:", key_columns)
-
-    where_clause = " AND ".join([f"{col}=?" for col in key_columns])
-
-    key_values = []
-
-    for key in key_columns:
-        idx = [c.upper() for c in columns].index(key.upper())
-        key_values.append(values[idx])
-
-    sql = f"""
-    SELECT AlterID
-    FROM {table_name}
-    WHERE {where_clause}
-    """
-
-    cursor.execute(sql, key_values)
-
-    return cursor.fetchone()
-
 
 # ==========================================
 # Insert Record
 # ==========================================
 
-def insert_record(cursor, table_name, columns, values):
+def insert_record(
+        cursor,
+        table_name,
+        columns,
+        values
+):
 
     placeholders = ",".join(["?"] * len(values))
 
@@ -234,36 +264,25 @@ def insert_record(cursor, table_name, columns, values):
 
 
 # ==========================================
-# Update Record
+# Delete Voucher
 # ==========================================
 
-def update_record(cursor, table_name, columns, values):
+def delete_masterid(
+        cursor,
+        table_name,
+        master_id
+):
 
-    master_id = None
+    cursor.execute(
 
-    set_clause = []
-    update_values = []
+        f"""
+        DELETE FROM {table_name}
+        WHERE MasterID = ?
+        """,
 
-    for column, value in zip(columns, values):
+        master_id
 
-        if column.upper() == "MASTERID":
-
-            master_id = value
-            continue
-
-        set_clause.append(f"{column}=?")
-        update_values.append(value)
-
-    update_values.append(master_id)
-
-    sql = f"""
-    UPDATE {table_name}
-    SET
-        {",".join(set_clause)}
-    WHERE MasterID = ?
-    """
-
-    cursor.execute(sql, update_values)
+    )
 
 
 # ==========================================
@@ -271,25 +290,29 @@ def update_record(cursor, table_name, columns, values):
 # ==========================================
 
 def sync_record(
+
         cursor,
         table_name,
         columns,
-        values, 
+        values,
         mode="UPSERT",
-        key_columns=None
+        processed_masterids=None
+
 ):
 
     # ----------------------------------
-    # INSERT ONLY
+    # INSERT MODE
     # ----------------------------------
-    print("SYNC key_columns:", key_columns)
+
     if mode.upper() == "INSERT":
 
         insert_record(
+
             cursor,
             table_name,
             columns,
             values
+
         )
 
         return "INSERT"
@@ -301,91 +324,82 @@ def sync_record(
     if mode.upper() == "REFRESH":
 
         insert_record(
+
             cursor,
             table_name,
             columns,
             values
+
         )
 
         return "INSERT"
 
     # ----------------------------------
-    # UPSERT
+    # UPSERT MODE
     # ----------------------------------
 
     if "MASTERID" not in [c.upper() for c in columns]:
 
         insert_record(
+
             cursor,
             table_name,
             columns,
             values
+
         )
 
         return "INSERT"
 
-    row = record_exists(
+    master_index = [
+
+        c.upper()
+
+        for c in columns
+
+    ].index("MASTERID")
+
+    master_id = values[master_index]
+
+    # Delete voucher only once
+    if master_id not in processed_masterids:
+
+        delete_masterid(
+
+            cursor,
+            table_name,
+            master_id
+
+        )
+
+        processed_masterids.add(master_id)
+
+    # Insert every row
+    insert_record(
+
         cursor,
         table_name,
         columns,
-        values,
-        key_columns
+        values
+
     )
 
-    # New Record
-    if row is None:
-
-        insert_record(
-            cursor,
-            table_name,
-            columns,
-            values
-        )
-
-        return "INSERT"
-
-    # No AlterID -> Skip
-    if "ALTERID" not in [c.upper() for c in columns]:
-
-        return "SKIP"
-
-    alter_index = [
-        c.upper()
-        for c in columns
-    ].index("ALTERID")
-
-    xml_alter = str(values[alter_index])
-
-    sql_alter = str(row[0])
-
-    # Updated Record
-    if xml_alter != sql_alter:
-
-        update_record(
-            cursor,
-            table_name,
-            columns,
-            values
-        )
-
-        return "UPDATE"
-
-    return "SKIP"
-# ==========================================
+    return "INSERT"# ==========================================
 # Import XML
 # ==========================================
 
 def import_xml(
+
         xml,
         table_name,
-        mode="UPSERT",
-        key_columns=None
+        mode="UPSERT"
+
 ):
 
     # ----------------------------
     # Clean XML
     # ----------------------------
-    print("IMPORT key_columns:", key_columns)
+
     xml = clean_xml(xml)
 
     # ----------------------------
@@ -404,7 +418,7 @@ def import_xml(
 
     if len(objects) == 0:
 
-        print("No Records Found.")
+        print("No Records Found")
 
         return
 
@@ -424,7 +438,11 @@ def import_xml(
 
         print(f"Refreshing {table_name}...")
 
-        cursor.execute(f"DELETE FROM {table_name}")
+        cursor.execute(
+
+            f"DELETE FROM {table_name}"
+
+        )
 
         conn.commit()
 
@@ -433,57 +451,74 @@ def import_xml(
     # ----------------------------
 
     sql_columns = get_table_columns(
+
         cursor,
         table_name
+
     )
 
     inserted = 0
-    updated = 0
-    skipped = 0
 
     # ----------------------------
-    # Loop Through Objects
+    # Keeps track of deleted vouchers
     # ----------------------------
+
+
+    # ----------------------------
+    # Loop through XML Objects
+    # ----------------------------
+
+    processed_masterids = set()
 
     for obj in objects:
 
-        record = object_to_dict(obj)
-        # print(record)
-        # break   
-        columns, values = prepare_record(
+        try:
 
-            record,
-            table_name,
-            sql_columns
+            record = object_to_dict(obj)
 
-        )
+            columns, values = prepare_record(
+                record,
+                table_name,
+                sql_columns
+            )
 
-        if len(columns) == 0:
+            if len(columns) == 0:
+                continue
 
-            continue
+            master_index = [
+                c.upper()
+                for c in columns
+            ].index("MASTERID")
 
-        action = sync_record(
+            master_id = values[master_index]
 
-            cursor,
-            table_name,
-            columns,
-            values,
-            mode,
-            key_columns
+            if master_id not in processed_masterids:
 
-        )
+                delete_masterid(
+                    cursor,
+                    table_name,
+                    master_id
+                )
 
-        if action == "INSERT":
+                processed_masterids.add(master_id)
+
+            insert_record(
+                cursor,
+                table_name,
+                columns,
+                values
+            )
 
             inserted += 1
 
-        elif action == "UPDATE":
+        except Exception as e:
 
-            updated += 1
+            print(f"Error in MasterID : {master_id}")
 
-        else:
+            print(e)
 
-            skipped += 1
+            conn.rollback()
+
 
     # ----------------------------
     # Commit
@@ -503,11 +538,7 @@ def import_xml(
 
     print(f"Table     : {table_name}")
 
-    print(f"Inserted  : {inserted}")
-
-    print(f"Updated   : {updated}")
-
-    print(f"Skipped   : {skipped}")
+    print(f"Imported  : {inserted}")
 
     print("------------------------------------")
 

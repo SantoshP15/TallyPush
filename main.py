@@ -15,7 +15,7 @@ for item in COLLECTIONS:
     collection_name = item["collection"]
     table_name = item["table"]
     mode = item["mode"]
-    key_columns = item["key_columns"]
+    # key_columns = item["key_columns"]
     last_alterid = get_last_alterid(table_name)
     print(f"\nProcessing : {collection_name}")
 
@@ -57,8 +57,7 @@ for item in COLLECTIONS:
         import_xml(
             response_xml,
             table_name,
-            mode,
-            key_columns
+            mode
         )
 
         log_info(f"{table_name} Imported Successfully")

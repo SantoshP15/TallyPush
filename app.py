@@ -23,7 +23,7 @@ def sync():
             collection_name = item["collection"]
             table_name = item["table"]
             mode = item["mode"]
-            key_columns = item["key_columns"]
+            # key_columns = item["key_columns"]
 
             request_xml = get_collection_xml(
                 collection_name
@@ -39,9 +39,7 @@ def sync():
 
                 table_name,
 
-                mode,
-
-                key_columns
+                mode
 
             )
 

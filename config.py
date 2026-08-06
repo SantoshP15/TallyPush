@@ -2,8 +2,8 @@
 # SQL Server Configuration
 # ==========================================
 
-SERVER = r"DESKTOP-2I29RMG\SQLEXPRESS01"
-DATABASE = "AdventureWorks2022"
+SERVER = r"DESKTOP-63UG5VL"
+DATABASE = "TallyDB"
 
 # Windows Authentication
 TRUSTED_CONNECTION = "yes"
@@ -53,16 +53,16 @@ COLLECTIONS = [
         "collection": "SalesInventoryDetails_coll",
         "table": "SalesInventory",
         "mode": "UPSERT",
-        "key_columns": ["MasterID", "StockItemName"]
+    #     "key_columns": ["MasterID", "StockItemName"]
         
     },
 
-    {
-        "collection": "SalesLedgerDetails_collSrc",
-        "table": "SalesLedger",
-        "mode": "UPSERT",
-        "key_columns": ["MasterID"]
-    },
+    # {
+    #     "collection": "SalesLedgerDetails_collSrc",
+    #     "table": "SalesLedger",
+    #     "mode": "UPSERT",
+       
+    # # },
 
     # {
     #     "collection": "PurchaseInventoryDetails_coll",
@@ -90,13 +90,13 @@ COLLECTIONS = [
 
     # {
     #     "collection": "AuraAllSalesColl_Src",
-    #     "table": "AuraAllSales",
+    #     "table": "AllSales",
     #     "mode": "UPSERT"
     # },
 
     # {
     #     "collection": "AuraAllPurchaseColl_Src",
-    #     "table": "AuraAllPurchase",
+    #     "table": "AllPurchase",
     #     "mode": "UPSERT"
     # }
 

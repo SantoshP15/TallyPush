@@ -12,7 +12,7 @@ def send_request(xml):
         TALLY_URL,
         data=xml.encode("utf-8"),
         headers={"Content-Type": "text/xml"},
-        timeout=300
+        timeout=3000
     )
 
     print("=" * 80)
